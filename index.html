@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Horizontes — Análisis de Inversión</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #131826; --panel2: #0e1220; --border: #232a3d;
+    --text: #e6e9f0; --muted: #8b93a7; --accent: #4f7cff;
+    --ok: #34c759; --warn: #ffb020; --bad: #ff4d4f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; justify-content: center; padding: 40px 16px;
+  }
+  .wrap { max-width: 880px; width: 100%; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 28px; width: 100%;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+  .brand svg { flex-shrink: 0; }
+  h1 { font-size: 22px; margin: 0; }
+  .tagline { color: var(--muted); font-size: 13.5px; margin: 4px 0 0; line-height: 1.5; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .metodologias { font-size: 12px; color: var(--muted); margin: 10px 0 24px; }
+  label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 6px; }
+  input, select {
+    width: 100%; padding: 10px 12px; border-radius: 8px;
+    border: 1px solid var(--border); background: #0e1220; color: var(--text);
+    font-size: 14px; margin-bottom: 14px;
+  }
+  button {
+    width: 100%; padding: 11px; border-radius: 8px; border: none;
+    background: var(--accent); color: white; font-size: 14px; font-weight: 600;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  .hidden { display: none !important; }
+  .grid-horizontes {
+    display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 22px;
+  }
+  @media (min-width: 680px) {
+    .grid-horizontes { grid-template-columns: 1fr 1fr; }
+  }
+  .horizonte {
+    padding: 16px; border-radius: 10px; background: var(--panel2);
+    border: 1px solid var(--border);
+  }
+  .horizonte h3 { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+  .score-num { font-size: 30px; font-weight: 700; line-height: 1; }
+  .clase { font-size: 12.5px; padding: 3px 10px; border-radius: 999px; display: inline-block; font-weight: 600; margin-top: 6px; }
+  .clase.STRONG_BUY, .clase.ACCUMULATE { background: rgba(52,199,89,0.15); color: var(--ok); }
+  .clase.HOLD { background: rgba(255,176,32,0.15); color: var(--warn); }
+  .clase.AVOID { background: rgba(255,77,79,0.15); color: var(--bad); }
+  .clase.SIN_DATOS { background: rgba(139,147,167,0.15); color: var(--muted); }
+  .narrativa-titulo { font-size: 13.5px; font-weight: 600; margin: 12px 0 4px; }
+  .narrativa-mensaje { font-size: 12.5px; color: var(--muted); line-height: 1.5; margin: 0 0 10px; }
+  .bloques { margin: 10px 0 0; border-top: 1px solid var(--border); padding-top: 10px; }
+  .bloque-row {
+    display: flex; justify-content: space-between; font-size: 11.5px;
+    color: var(--muted); padding: 2px 0;
+  }
+  .bloque-row b { color: var(--text); font-weight: 500; }
+  .alertas { margin: 10px 0 0; padding-left: 0; }
+  .alertas li { font-size: 11.5px; color: var(--muted); margin-bottom: 5px; list-style: none; }
+  .disclaimer {
+    margin-top: 20px; padding: 12px; border-radius: 8px;
+    background: rgba(255,176,32,0.08); border: 1px solid rgba(255,176,32,0.25);
+    font-size: 11.5px; color: var(--muted); line-height: 1.5;
+  }
+  .quota { font-size: 12px; color: var(--muted); margin-top: 10px; text-align: right; }
+  .error-msg { color: var(--bad); font-size: 13px; margin-top: 10px; }
+  .cached-tag { font-size: 10.5px; color: var(--muted); margin-left: 6px; }
+  .ticker-nota { font-size: 12px; color: var(--muted); margin: 0 0 12px; }
+  .print-header { display: none; }
+
+  @media print {
+    body { padding: 0; background: white; color: #111; }
+    .wrap { max-width: 100%; }
+    .card { border: none; padding: 0; }
+    .brand, .tagline, .metodologias, #login-panel,
+    #ticker, label[for="ticker"], #btn-analizar, #btn-logout,
+    #btn-descargar, .quota, .error-msg { display: none !important; }
+    .print-header { display: block; margin-bottom: 18px; }
+    .print-header h2 { margin: 0 0 2px; font-size: 18px; }
+    .print-header p { margin: 0; font-size: 12px; color: #555; }
+    .horizonte { background: white; border: 1px solid #ccc; break-inside: avoid; }
+    .horizonte h3, .bloque-row span, .narrativa-mensaje, .alertas li, .cached-tag, .ticker-nota { color: #444 !important; }
+    .narrativa-titulo, .bloque-row b { color: #111 !important; }
+    .disclaimer { background: white; border: 1px solid #ccc; color: #444; }
+    .grid-horizontes { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<div class="card">
+  <div class="brand">
+    <svg width="34" height="34" viewBox="0 0 34 34" fill="none">
+      <circle cx="17" cy="17" r="16" stroke="#4f7cff" stroke-width="2"/>
+      <path d="M6 21 L13 13 L18 18 L28 8" stroke="#4f7cff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="28" cy="8" r="2.3" fill="#4f7cff"/>
+    </svg>
+    <h1>Horizontes</h1>
+  </div>
+  <p class="tagline">
+    Análisis de inversión 100% automático y objetivo: combinamos 4 metodologías
+    reconocidas en un solo puntaje por ticker, calculado igual para todos —
+    sin sesgos, sin recomendaciones personalizadas, sin letra chica.
+  </p>
+  <p class="metodologias">Metodologías: Graham (seguridad del valor) · Lynch (crecimiento a precio razonable) · Murphy (momentum técnico) · Quality-Minus-Junk (calidad del negocio)</p>
+
+  <!-- ── Login (visible sin sesión) ─────────────────────────────────── -->
+  <div id="login-panel">
+    <label for="email">Tu email</label>
+    <input id="email" type="email" placeholder="vos@ejemplo.com" />
+    <button id="btn-login">Enviarme un link de acceso</button>
+    <p id="login-msg" class="sub hidden"></p>
+  </div>
+
+  <!-- ── Formulario de análisis (visible con sesión) ────────────────── -->
+  <div id="app-panel" class="hidden">
+    <p class="sub" id="user-email"></p>
+
+    <label for="ticker">Ticker</label>
+    <input id="ticker" type="text" placeholder="AAPL, GOOGL.BA, GGAL..." autocomplete="off" />
+
+    <button id="btn-analizar">Analizar los 4 horizontes</button>
+    <button id="btn-logout" class="secondary" style="margin-top:8px;">Cerrar sesión</button>
+
+    <div id="print-header" class="print-header">
+      <h2>Horizontes — Informe de análisis</h2>
+      <p id="print-meta"></p>
+    </div>
+    <div id="resultado" class="hidden"></div>
+    <div id="descargo-radar" class="disclaimer hidden"><b>Importante.</b> Ranking cuantitativo informativo, calculado con datos públicos y reglas fijas. No es una recomendación personalizada ni una oferta de compra o venta. No considera tu situación, tus objetivos ni tu tolerancia al riesgo. Los datos pueden tener demoras o errores. Rendimientos pasados no garantizan resultados futuros. Las bandas de puntaje describen la salida del modelo y no constituyen una instrucción de compra, venta o mantenimiento.</div>
+    <button id="btn-descargar" class="secondary hidden" style="margin-top:14px;">Descargar informe (PDF)</button>
+    <p id="quota-info" class="quota"></p>
+  </div>
+</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// CONFIGURACIÓN — completar antes de publicar
+// ═══════════════════════════════════════════════════════════════════
+const SUPABASE_URL      = "https://hfrliueqvwnqmdehonvr.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmcmxpdWVxdnducW1kZWhvbnZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTI1OTUsImV4cCI6MjA5MjI4ODU5NX0.NFPAHHkx5yAaow1UcJWmZNdNy98yhfyYbRQzLCbc6ro";
+const API_BASE_URL      = "https://horizontes-core.onrender.com";
+
+// Reparo defensivo (sept-2026): si la URL llegó con un "##" al principio del
+// hash (ver bug de emailRedirectTo más abajo), el cliente de Supabase no
+// reconoce el access_token y la página se queda para siempre en el login,
+// aunque el link "se vea" válido. Si detectamos ese patrón, lo arreglamos
+// ANTES de que se cree el cliente — así incluso un link viejo, ya roto,
+// termina autenticando en vez de quedar trabado.
+if (window.location.hash.startsWith("##")) {
+  const hashLimpio = window.location.hash.slice(1); // deja un solo "#"
+  history.replaceState(null, "", window.location.pathname + window.location.search + hashLimpio);
+}
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const loginPanel = document.getElementById("login-panel");
+const appPanel   = document.getElementById("app-panel");
+const loginMsg   = document.getElementById("login-msg");
+const resultado  = document.getElementById("resultado");
+const quotaInfo  = document.getElementById("quota-info");
+const btnDescargar = document.getElementById("btn-descargar");
+const printMeta  = document.getElementById("print-meta");
+const descargoRadar = document.getElementById("descargo-radar");
+
+btnDescargar.onclick = () => window.print();
+
+// ── Traducciones de presentación (el contrato interno de la API sigue en
+//    inglés — esto es solo para mostrar en pantalla) ────────────────────
+const CLASIFICACION_ES = {
+  "STRONG BUY": "Puntaje alto",
+  "ACCUMULATE": "Puntaje medio-alto",
+  "HOLD": "Puntaje medio-bajo",
+  "AVOID": "Puntaje bajo",
+};
+
+const HORIZONTES_ORDEN = ["liquidez_plus", "conservador", "moderado", "agresivo"];
+const HORIZONTES_LABEL = {
+  liquidez_plus: "Liquidez Plus (menos de 1 año)",
+  conservador:   "Corto plazo (de 1 a 3 años)",
+  moderado:      "Mediano plazo (más de 3 y hasta 7 años)",
+  agresivo:      "Largo plazo (más de 7 años)",
+};
+
+const BLOQUE_LABEL = {
+  graham: "Graham",
+  lynch: "Lynch",
+  murphy: "Murphy",
+  investingpro: "Calidad (QMJ)",
+};
+
+// ── Sesión ──────────────────────────────────────────────────────────
+async function actualizarUI() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    loginPanel.classList.add("hidden");
+    appPanel.classList.remove("hidden");
+    document.getElementById("user-email").textContent = `Sesión: ${session.user.email}`;
+    cargarCuota(session.access_token);
+  } else {
+    loginPanel.classList.remove("hidden");
+    appPanel.classList.add("hidden");
+  }
+}
+
+document.getElementById("btn-login").onclick = async () => {
+  const email = document.getElementById("email").value.trim();
+  if (!email) return;
+  const btn = document.getElementById("btn-login");
+  btn.disabled = true; btn.textContent = "Enviando...";
+  // Usamos origin + pathname (sin hash ni query) en vez de window.location.href:
+  // si la URL actual llegó a tener un "#" colgando de un intento de login previo
+  // (magic link ya usado, error, etc.), href lo arrastra tal cual, y Supabase le
+  // agrega su propio "#access_token=..." encima → URL final con "##access_token="
+  // que el cliente no puede parsear (bug detectado sept-2026: quedaba en el login
+  // para siempre con un link que parecía válido pero nunca autenticaba).
+  const redirectUrl = window.location.origin + window.location.pathname;
+  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectUrl } });
+  btn.disabled = false; btn.textContent = "Enviarme un link de acceso";
+  loginMsg.classList.remove("hidden");
+  loginMsg.textContent = error
+    ? `Error: ${error.message}`
+    : "Revisá tu email y hacé click en el link para entrar.";
+};
+
+document.getElementById("btn-logout").onclick = async () => {
+  await sb.auth.signOut();
+  actualizarUI();
+};
+
+sb.auth.onAuthStateChange((_event, _session) => actualizarUI());
+
+// ── Análisis on-demand (los 4 horizontes de una sola vez) ────────────
+document.getElementById("btn-analizar").onclick = async () => {
+  const ticker = document.getElementById("ticker").value.trim().toUpperCase();
+  if (!ticker) return;
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { actualizarUI(); return; }
+
+  const btn = document.getElementById("btn-analizar");
+  btn.disabled = true; btn.textContent = "Analizando...";
+  resultado.classList.add("hidden");
+  descargoRadar.classList.add("hidden");
+  btnDescargar.classList.add("hidden");
+
+  try {
+    const resp = await fetch(`${API_BASE_URL}/score/multi`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ ticker }),
+    });
+
+    if (resp.status === 401) {
+      await sb.auth.signOut();
+      actualizarUI();
+      return;
+    }
+    if (resp.status === 429) {
+      const body = await resp.json();
+      mostrarError(body.detail || "Alcanzaste tu límite diario de consultas.");
+      return;
+    }
+    if (!resp.ok) {
+      mostrarError("No pudimos completar el análisis. Intentá de nuevo en unos minutos.");
+      return;
+    }
+
+    const body = await resp.json();
+    if (body.status === "sin_datos") {
+      mostrarSinDatos(body);
+    } else {
+      mostrarHorizontes(body);
+    }
+    cargarCuota(session.access_token);
+
+  } catch (e) {
+    mostrarError("No pudimos conectar con el servidor. Revisá tu conexión.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Analizar los 4 horizontes";
+  }
+};
+
+function tarjetaHorizonte(perfilKey, item) {
+  const s = item.score;
+  const claseKey = s.clasificacion.replace(/ /g, "_");
+  const claseEs = CLASIFICACION_ES[s.clasificacion] || s.clasificacion;
+  const narrativa = s.narrativa_housel || {};
+
+  const bloquesHtml = Object.entries(s.bloques || {}).map(([nombre, b]) => {
+    const label = BLOQUE_LABEL[nombre] || nombre;
+    return `<div class="bloque-row"><span>${escapeHtml(label)}</span><b>${b.score_bruto.toFixed(0)}pts · ${(b.peso * 100).toFixed(0)}%</b></div>`;
+  }).join("");
+
+  const alertasHtml = (s.alertas || []).length
+    ? `<ul class="alertas">${s.alertas.map(a => `<li>${escapeHtml(a)}</li>`).join("")}</ul>`
+    : "";
+
+  return `
+    <div class="horizonte">
+      <h3>${HORIZONTES_LABEL[perfilKey] || perfilKey}</h3>
+      <div class="score-num">${s.score_final.toFixed(1)}</div>
+      <span class="clase ${claseKey}">${escapeHtml(claseEs)}</span>
+      ${item.cached ? '<span class="cached-tag">(caché)</span>' : ''}
+      ${narrativa.titulo ? `<div class="narrativa-titulo">${escapeHtml(narrativa.titulo)}</div>` : ''}
+      ${narrativa.mensaje ? `<p class="narrativa-mensaje">${escapeHtml(narrativa.mensaje)}</p>` : ''}
+      <div class="bloques">${bloquesHtml}</div>
+      ${alertasHtml}
+    </div>
+  `;
+}
+
+function mostrarHorizontes(body) {
+  const disclaimer = Object.values(body.resultados)[0]?.score?.disclaimer || "";
+  const cardsHtml = HORIZONTES_ORDEN
+    .filter(k => body.resultados[k])
+    .map(k => tarjetaHorizonte(k, body.resultados[k]))
+    .join("");
+
+  // Si el pedido se sirvió desde otro ticker (se escribió "NVDA" y el caché
+  // tiene el CEDEAR "NVDA.BA"), se muestra el realmente servido y se avisa.
+  const tickerMostrado = body.ticker_resuelto || body.ticker;
+  const notaTicker = (body.ticker_resuelto && body.ticker_resuelto !== body.ticker)
+    ? `<p class="ticker-nota">Mostrando ${escapeHtml(body.ticker_resuelto)} (CEDEAR)</p>`
+    : '';
+
+  resultado.innerHTML = `
+    ${notaTicker}
+    <div class="grid-horizontes">${cardsHtml}</div>
+    ${disclaimer ? `<div class="disclaimer">${escapeHtml(disclaimer)}</div>` : ''}
+  `;
+  resultado.classList.remove("hidden");
+  descargoRadar.classList.remove("hidden");
+
+  const fecha = new Date().toLocaleString("es-AR", { dateStyle: "medium", timeStyle: "short" });
+  printMeta.textContent = `Ticker: ${tickerMostrado} · Generado: ${fecha}`;
+  btnDescargar.classList.remove("hidden");
+}
+
+function mostrarSinDatos(body) {
+  resultado.innerHTML = `
+    <div class="horizonte">
+      <span class="clase SIN_DATOS">SIN DATOS</span>
+      <p style="margin-top:10px;">${escapeHtml(body.mensaje)}</p>
+    </div>
+    <div class="disclaimer">${escapeHtml(body.disclaimer)}</div>
+  `;
+  resultado.classList.remove("hidden");
+  descargoRadar.classList.remove("hidden");
+  btnDescargar.classList.add("hidden");
+}
+
+function mostrarError(msg) {
+  resultado.innerHTML = `<p class="error-msg">${escapeHtml(msg)}</p>`;
+  resultado.classList.remove("hidden");
+  descargoRadar.classList.add("hidden");
+  btnDescargar.classList.add("hidden");
+}
+
+async function cargarCuota(token) {
+  try {
+    const resp = await fetch(`${API_BASE_URL}/me/quota`, {
+      headers: { "Authorization": `Bearer ${token}` },
+    });
+    if (!resp.ok) return;
+    const q = await resp.json();
+    quotaInfo.textContent = `Plan ${q.plan} · ${q.consultas_hoy}/${q.limite} consultas hoy`;
+  } catch (e) { /* silencioso — no bloquear la UI por esto */ }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+actualizarUI();
+</script>
+</body>
+</html>
